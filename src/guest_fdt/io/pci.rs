@@ -193,6 +193,7 @@ impl PciHost<'_> {
         builder.begin_node(hex_node_name("pcie@", self.ecam.base, &mut name)?)?;
         builder.property_string("compatible", "pci-host-ecam-generic")?;
         builder.property_string("device_type", "pci")?;
+        builder.property_u32("linux,pci-domain", 0)?;
         builder.property_u32("#address-cells", 3)?;
         builder.property_u32("#size-cells", 2)?;
         builder.property_u32("#interrupt-cells", 1)?;

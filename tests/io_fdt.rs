@@ -33,6 +33,7 @@ fn boot() -> Aarch64LinuxBoot<'static> {
 }
 fn devices() -> IoDevices<'static> {
     IoDevices {
+        hotplug_pci: None,
         clients: &[],
         sdhci: None,
         pci: None,
@@ -1010,5 +1011,97 @@ fn virtual_pci_ecam_resources_and_intx_map_are_guest_owned() -> Result<(), &'sta
         })
         .is_err()
     );
+    Ok(())
+}
+
+#[test]
+fn hotplug_bus_has_two_buses_and_identity_dma_separate_from_physical_devices()
+-> Result<(), &'static str> {
+    let bus = super::HotplugPci {
+        ecam: super::MmioWindow {
+            base: 0x0a60_0000,
+            size: 2 * MIB,
+        },
+        memory: super::MmioWindow {
+            base: 0x0aa0_0000,
+            size: 2 * MIB,
+        },
+        hotplug_irq: 120,
+        endpoint_irq: 121,
+    };
+    let io = IoDevices {
+        hotplug_pci: Some(bus),
+        ..devices()
+    };
+    let tree = build(io).map_err(|_| "build mixed physical and virtual buses")?;
+    let values = properties(&tree)?;
+    assert_eq!(
+        values
+            .get("/pcie@a600000/linux,pci-domain")
+            .map(Vec::as_slice),
+        Some(1u32.to_be_bytes().as_slice())
+    );
+    let bus_range: Vec<_> = [0u32, 1].into_iter().flat_map(u32::to_be_bytes).collect();
+    assert_eq!(values.get("/pcie@a600000/bus-range"), Some(&bus_range));
+    assert_eq!(
+        values.get("/pcie@a600000/dma-ranges").map(Vec::as_slice),
+        Some([].as_slice())
+    );
+    assert!(
+        values
+            .get("/io-bus/dma-ranges")
+            .is_some_and(|range| !range.is_empty())
+    );
+    let map: Vec<_> = [
+        0u32,
+        0,
+        0,
+        1,
+        super::super::GIC_PHANDLE,
+        0,
+        88,
+        4,
+        0,
+        0,
+        0,
+        2,
+        super::super::GIC_PHANDLE,
+        0,
+        89,
+        4,
+    ]
+    .into_iter()
+    .flat_map(u32::to_be_bytes)
+    .collect();
+    assert_eq!(values.get("/pcie@a600000/interrupt-map"), Some(&map));
+    for invalid in [
+        super::HotplugPci {
+            ecam: super::MmioWindow {
+                base: 0x0a00_0000,
+                size: 2 * MIB,
+            },
+            ..bus
+        },
+        super::HotplugPci {
+            hotplug_irq: 40,
+            ..bus
+        },
+        super::HotplugPci {
+            endpoint_irq: 120,
+            ..bus
+        },
+        super::HotplugPci {
+            memory: bus.ecam,
+            ..bus
+        },
+    ] {
+        assert!(
+            build(IoDevices {
+                hotplug_pci: Some(invalid),
+                ..devices()
+            })
+            .is_err()
+        );
+    }
     Ok(())
 }
