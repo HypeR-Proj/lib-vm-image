@@ -36,6 +36,7 @@ fn devices() -> IoDevices<'static> {
         clients: &[],
         sdhci: None,
         pci: None,
+        virtual_pci: None,
         network: None,
         virtio: Some(MmioDevice {
             base: 0x0b00_0000,
@@ -933,4 +934,81 @@ fn sdhci_rejects_missing_dma_overlap_and_inconsistent_silicon_facts() {
         io.sdhci = Some(broken);
         assert_eq!(build(io), Err(Error::InvalidInput));
     }
+}
+
+#[test]
+fn virtual_pci_ecam_resources_and_intx_map_are_guest_owned() -> Result<(), &'static str> {
+    let bus = super::VirtualPci {
+        ecam: super::MmioWindow {
+            base: 0x0a80_0000,
+            size: MIB,
+        },
+        memory: super::MmioWindow {
+            base: 0x0a00_0000,
+            size: MIB,
+        },
+        interrupts: &[(1, 48), (2, 49)],
+    };
+    let io = IoDevices {
+        virtual_pci: Some(bus),
+        ..IoDevices::empty()
+    };
+    let tree = build(io).map_err(|_| "build virtual PCI")?;
+    let values = properties(&tree)?;
+    assert_eq!(
+        values.get("/pcie@a800000/compatible").map(Vec::as_slice),
+        Some(b"pci-host-ecam-generic\0".as_slice())
+    );
+    assert_eq!(
+        values
+            .get("/intc@8000000/#address-cells")
+            .map(Vec::as_slice),
+        Some(0u32.to_be_bytes().as_slice())
+    );
+    let expected: Vec<u8> = [
+        0x800u32,
+        0,
+        0,
+        1,
+        crate::guest_fdt::GIC_PHANDLE,
+        0,
+        16,
+        4,
+        0x1000,
+        0,
+        0,
+        1,
+        crate::guest_fdt::GIC_PHANDLE,
+        0,
+        17,
+        4,
+    ]
+    .into_iter()
+    .flat_map(u32::to_be_bytes)
+    .collect();
+    assert_eq!(values.get("/pcie@a800000/interrupt-map"), Some(&expected));
+    assert!(!values.contains_key("/virtio_mmio@a000000/compatible"));
+    assert!(
+        build(IoDevices {
+            virtual_pci: Some(super::VirtualPci {
+                memory: bus.ecam,
+                ..bus
+            }),
+            ..IoDevices::empty()
+        })
+        .is_err()
+    );
+    assert!(
+        build(IoDevices {
+            virtual_pci: Some(bus),
+            virtio: Some(MmioDevice {
+                base: 0x0a00_0000,
+                size: 4096,
+                irq: 48
+            }),
+            ..IoDevices::empty()
+        })
+        .is_err()
+    );
+    Ok(())
 }

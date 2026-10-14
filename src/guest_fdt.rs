@@ -251,6 +251,8 @@ pub fn build_aarch64_linux_with_io(
     )?;
     if let Some(pci) = devices.pci {
         pci.append_msi(&mut builder)?;
+    } else {
+        builder.property_u32("#address-cells", 0)?;
     }
     builder.end_node()?;
 

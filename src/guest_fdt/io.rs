@@ -7,6 +7,8 @@ use super::{Aarch64LinuxBoot, Builder, Error, hex_node_name};
 
 mod firmware;
 mod pci;
+mod virtual_pci;
+pub use virtual_pci::VirtualPci;
 mod sdhci;
 pub use firmware::{FIRMWARE_PHANDLE_BASE, FIRMWARE_PHANDLE_LIMIT, FirmwareNode, FirmwareProperty};
 pub use pci::{PciBar, PciHost};
@@ -63,6 +65,7 @@ pub struct IoClient {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct IoDevices<'ranges> {
+    pub virtual_pci: Option<VirtualPci<'ranges>>,
     pub clients: &'ranges [IoClient],
     pub virtio: Option<MmioDevice>,
     /// Second virtio transport: a guest network frontend or assigned uplink.
@@ -86,6 +89,7 @@ impl IoDevices<'_> {
             network: None,
             sdhci: None,
             pci: None,
+            virtual_pci: None,
             dma_ranges: &[],
             shared_memory: None,
             mailbox: None,
@@ -94,6 +98,9 @@ impl IoDevices<'_> {
     }
 
     pub(super) fn validate(self, boot: Aarch64LinuxBoot<'_>) -> Result<(), Error> {
+        if let Some(pci) = self.virtual_pci {
+            pci.validate(self, boot)?;
+        }
         if let Some(sdhci) = self.sdhci {
             sdhci.validate(self, boot)?;
         }
@@ -493,6 +500,9 @@ impl IoDevices<'_> {
             if physical {
                 builder.end_node()?;
             }
+        }
+        if let Some(pci) = self.virtual_pci {
+            pci.append(builder)?;
         }
         if let Some(pci) = self.pci {
             pci.append(builder, self)?;
