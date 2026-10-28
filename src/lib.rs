@@ -35,17 +35,8 @@ pub const RISCV64_REFERENCE_PROFILE: &str = "riscv64-reference";
 /// Maximum accepted command-line bytes, excluding any terminator.
 pub const MAX_BOOT_ARGUMENT_BYTES: usize = 2048;
 
-/// Random-access byte source used without requiring an allocation policy.
-pub trait ReadAt {
-    type Error;
-
-    fn length(&self) -> Result<u64, Self::Error>;
-    /// Fills the entire output from `offset`, or reports a source error.
-    ///
-    /// A short read, including premature EOF, must not be reported as success.
-    /// On error the output may already contain a partially copied prefix.
-    fn read_exact_at(&self, offset: u64, output: &mut [u8]) -> Result<(), Self::Error>;
-}
+#[doc(no_inline)]
+pub use hyper_os::fs::ReadAt;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error<SourceError> {

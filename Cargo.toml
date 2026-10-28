@@ -15,6 +15,7 @@ description = "Bounded FIT parsing and guest boot metadata for HypeR VMMs"
 
 [dependencies]
 hyper-abi.workspace = true
+hyper-os.workspace = true
 
 [lints]
 workspace = true
