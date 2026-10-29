@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "name": "vm-image",
+  "kind": "library",
+  "origin": {
+    "repository": "https://github.com/roolrz/HypeR",
+    "commit": "8d42d047058a2b58a291803700e86487fb723f7a"
+  },
+  "sources": {
+    "Cargo.toml": "lib/vm-image/Cargo.toml",
+    "src/aarch64_linux.rs": "lib/vm-image/src/aarch64_linux.rs",
+    "src/guest_fdt.rs": "lib/vm-image/src/guest_fdt.rs",
+    "src/guest_fdt/io.rs": "lib/vm-image/src/guest_fdt/io.rs",
+    "src/guest_fdt/io/firmware.rs": "lib/vm-image/src/guest_fdt/io/firmware.rs",
+    "src/guest_fdt/io/hotplug_pci.rs": "lib/vm-image/src/guest_fdt/io/hotplug_pci.rs",
+    "src/guest_fdt/io/pci.rs": "lib/vm-image/src/guest_fdt/io/pci.rs",
+    "src/guest_fdt/io/sdhci.rs": "lib/vm-image/src/guest_fdt/io/sdhci.rs",
+    "src/guest_fdt/io/virtual_pci.rs": "lib/vm-image/src/guest_fdt/io/virtual_pci.rs",
+    "src/guest_fdt/riscv64.rs": "lib/vm-image/src/guest_fdt/riscv64.rs",
+    "src/lib.rs": "lib/vm-image/src/lib.rs",
+    "src/linux.rs": "lib/vm-image/src/linux.rs",
+    "src/placement.rs": "lib/vm-image/src/placement.rs",
+    "src/riscv64_linux.rs": "lib/vm-image/src/riscv64_linux.rs",
+    "tests/io_fdt.rs": "lib/vm-image/tests/io_fdt.rs",
+    "tests/pci_fdt.rs": "lib/vm-image/tests/pci_fdt.rs",
+    "tests/riscv64_fdt.rs": "lib/vm-image/tests/riscv64_fdt.rs",
+    "tests/riscv64_linux.rs": "lib/vm-image/tests/riscv64_linux.rs"
+  },
+  "SPDX-FileCopyrightText": "2026 roolrz",
+  "SPDX-License-Identifier": "Apache-2.0",
+  "mounts": {
+    "": "lib/vm-image"
+  },
+  "packages": [
+    "hyper-vm-image"
+  ],
+  "tests": [
+    [
+      "make",
+      "app-test",
+      "APP_TEST_PACKAGE=hyper-vm-image"
+    ]
+  ]
+}
