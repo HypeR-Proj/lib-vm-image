@@ -40,5 +40,20 @@
       "app-test",
       "APP_TEST_PACKAGE=hyper-vm-image"
     ]
-  ]
+  ],
+  "cargo_context": {
+    "Cargo.toml": {
+      "workspace": null,
+      "membership": "../../app",
+      "dependency_paths": {},
+      "inherited_dependencies": {
+        "/dependencies/hyper-abi": {
+          "workspace": true
+        },
+        "/dependencies/hyper-os": {
+          "workspace": true
+        }
+      }
+    }
+  }
 }
