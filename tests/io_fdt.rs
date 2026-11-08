@@ -33,6 +33,7 @@ fn boot() -> Aarch64LinuxBoot<'static> {
 }
 fn devices() -> IoDevices<'static> {
     IoDevices {
+        entropy: None,
         hotplug_pci: None,
         clients: &[],
         sdhci: None,
@@ -1103,5 +1104,40 @@ fn hotplug_bus_has_two_buses_and_identity_dma_separate_from_physical_devices()
             .is_err()
         );
     }
+    Ok(())
+}
+
+#[test]
+fn entropy_device_is_explicit_irq_free_and_cannot_overlap_other_owners() -> Result<(), &'static str>
+{
+    let mut io = devices();
+    io.entropy = Some(crate::guest_fdt::io::MmioWindow {
+        base: 0x0b02_0000,
+        size: 0x28,
+    });
+    let tree = build(io).map_err(|_| "rng tree")?;
+    let fields = properties(&tree)?;
+    assert_eq!(
+        fields.get("/rng@b020000/compatible").map(Vec::as_slice),
+        Some(b"brcm,bcm2711-rng200\0".as_slice())
+    );
+    assert_eq!(
+        fields.get("/rng@b020000/reg").ok_or("missing RNG reg")?,
+        &[0x0b02_0000u64.to_be_bytes(), 0x28u64.to_be_bytes()].concat()
+    );
+    assert!(!fields.contains_key("/rng@b020000/interrupts"));
+    assert!(!fields.contains_key("/rng@b020000/clocks"));
+    io.network = Some(MmioDevice {
+        base: 0x0b02_0000,
+        size: 0x200,
+        irq: 59,
+    });
+    assert!(build(io).is_err());
+    io.network = None;
+    io.notification.as_mut().ok_or("missing notification")?.irq = 122;
+    assert!(build(io).is_err());
+    io.notification.as_mut().ok_or("missing notification")?.irq = 42;
+    io.entropy.as_mut().ok_or("missing entropy")?.size = 0x100;
+    assert!(build(io).is_err());
     Ok(())
 }
