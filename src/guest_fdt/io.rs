@@ -5,6 +5,7 @@
 
 use super::{Aarch64LinuxBoot, Builder, Error, hex_node_name};
 
+mod entropy;
 mod firmware;
 mod hotplug_pci;
 pub use hotplug_pci::HotplugPci;
@@ -74,6 +75,8 @@ pub struct IoDevices<'ranges> {
     /// Second virtio transport: a guest network frontend or assigned uplink.
     pub network: Option<MmioDevice>,
     pub sdhci: Option<SdhciDevice>,
+    /// IRQ-free, explicitly assigned rng200 device; never a source synthesized by the VMM.
+    pub entropy: Option<MmioWindow>,
     /// Entire assigned PCI function with its caller-projected firmware subtree.
     pub pci: Option<PciHost<'ranges>>,
     /// Empty for a virtual frontend; physical assignment requires complete
@@ -92,6 +95,7 @@ impl IoDevices<'_> {
             virtio: None,
             network: None,
             sdhci: None,
+            entropy: None,
             pci: None,
             virtual_pci: None,
             dma_ranges: &[],
@@ -102,6 +106,7 @@ impl IoDevices<'_> {
     }
 
     pub(super) fn validate(self, boot: Aarch64LinuxBoot<'_>) -> Result<(), Error> {
+        entropy::validate(self, boot)?;
         if let Some(pci) = self.hotplug_pci {
             pci.validate(self, boot)?;
         }
@@ -464,6 +469,13 @@ impl IoDevices<'_> {
         _boot: Aarch64LinuxBoot<'_>,
     ) -> Result<(), Error> {
         let mut name = [0u8; 64];
+        if let Some(window) = self.entropy {
+            builder.begin_node(hex_node_name("rng@", window.base, &mut name)?)?;
+            builder.property_string("compatible", "brcm,bcm2711-rng200")?;
+            builder.property_u64_pair("reg", window.base, window.size)?;
+            builder.property_string("status", "okay")?;
+            builder.end_node()?;
+        }
         self.append_clients(builder)?;
         if let Some(pci) = self.hotplug_pci {
             pci.append(builder)?;

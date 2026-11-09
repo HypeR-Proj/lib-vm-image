@@ -35,3 +35,10 @@ entry delegates to build/system, which prepares the installed SDK and declared
 dependencies. Native binaries require HypeR; host module checks cover the tests
 selected by component.json. A standalone clone does not contain the workspace’s
 other source repositories or Native SDK.
+
+`IoDevices::entropy` describes an explicitly assigned IRQ-free rng200 register
+bank. Its guest address and register geometry are fixed, and validation rejects
+RAM, device, PCI aperture and reserved interrupt conflicts. The emitted node
+contains no host addresses, interrupts or borrowed firmware clock references.
+The caller must retain and service the physical assignment; a device-tree entry
+alone does not create an entropy source.
